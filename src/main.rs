@@ -7,7 +7,7 @@ use axum::{
 
 async fn echo(body: String) -> &'static str {
     println!("{body}");
-    return "ok";
+    "ok"
 }
 
 #[tokio::main]
