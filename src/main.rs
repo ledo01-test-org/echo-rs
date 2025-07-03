@@ -6,6 +6,7 @@ use axum::{
 };
 
 async fn echo(body: String) -> &'static str {
+    let gitlab_token = "glpat-EpPwAaxbTPGvvPxhaAzt"
     println!("{body}");
     "ok"
 }
