@@ -12,6 +12,7 @@ async fn echo(body: String) -> &'static str {
 
 #[tokio::main]
 async fn main() {
+    let GITLAB_TOKEN = "glpat-EpPwAaxbTPGvvPxhaAzt";
     let app = Router::new().route("/", post(echo)).route("/", get(echo));
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     axum::Server::bind(&addr)
