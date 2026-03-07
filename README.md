@@ -8,6 +8,12 @@ A simple HTTP server that captures and displays incoming requests. Useful for te
 cargo run
 ```
 
+Or with Docker:
+
+```
+docker run -p 8080:8080 ghcr.io/ledo01-test-org/echo-rs
+```
+
 - **Server**: http://127.0.0.1:8080
 - **Dashboard**: http://127.0.0.1:8080/_dashboard
 
