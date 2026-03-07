@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo Server</title>
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            background: #16213e;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #0f3460;
+        }
+        header h1 { font-size: 18px; font-weight: 500; }
+        header .actions { display: flex; gap: 10px; align-items: center; }
+        header .count { color: #888; font-size: 14px; }
+        button {
+            background: #0f3460;
+            color: #eee;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover { background: #1a4a7a; }
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .request-list {
+            width: 320px;
+            background: #16213e;
+            border-right: 1px solid #0f3460;
+            overflow-y: auto;
+        }
+        .request-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+        }
+        .request-item:hover { background: #1a2a4e; }
+        .request-item.selected { background: #0f3460; }
+        .request-item .method-path {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .request-item .method {
+            font-weight: 600;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .method-GET { background: #2d6a4f; color: #b7e4c7; }
+        .method-POST { background: #1d4e89; color: #a2d2ff; }
+        .method-PUT { background: #b5651d; color: #ffd7ba; }
+        .method-DELETE { background: #9b2226; color: #ffccd5; }
+        .method-PATCH { background: #7b2cbf; color: #e0aaff; }
+        .request-item .path {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .request-item .time {
+            font-size: 11px;
+            color: #888;
+        }
+        .detail-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .detail-panel.empty {
+            justify-content: center;
+            align-items: center;
+            color: #666;
+        }
+        .detail-header {
+            padding: 16px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+        }
+        .detail-header .title {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .detail-header .meta { font-size: 12px; color: #888; }
+        .detail-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .section { margin-bottom: 24px; }
+        .section h3 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        .headers-table {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            width: 100%;
+        }
+        .headers-table tr { border-bottom: 1px solid #0f3460; }
+        .headers-table td { padding: 6px 0; vertical-align: top; }
+        .headers-table .header-name { color: #82aaff; width: 200px; }
+        .headers-table .header-value { color: #c3e88d; word-break: break-all; }
+        pre[class*="language-"] {
+            margin: 0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .body-raw {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            background: #2d2d2d;
+            padding: 16px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Echo Server</h1>
+        <div class="actions">
+            <span class="count"><span id="request-count">0</span> requests</span>
+            <button onclick="clearRequests()">Clear</button>
+        </div>
+    </header>
+    <div class="container">
+        <div class="request-list" id="request-list"></div>
+        <div class="detail-panel empty" id="detail-panel">
+            <p>Select a request to view details</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+    <script>
+        let requests = [];
+        let selectedId = null;
+
+        // Load history on startup
+        fetch('/_history')
+            .then(res => res.json())
+            .then(history => {
+                requests = history;
+                renderList();
+                if (requests.length > 0) {
+                    selectRequest(requests[0].id);
+                }
+            });
+
+        // Listen for new requests
+        const eventSource = new EventSource('/_sse');
+        eventSource.onmessage = (event) => {
+            const req = JSON.parse(event.data);
+            requests.unshift(req);
+            if (requests.length > 100) requests.pop();
+            renderList();
+            if (selectedId === null) {
+                selectRequest(req.id);
+            }
+        };
+
+        function renderList() {
+            const list = document.getElementById('request-list');
+            document.getElementById('request-count').textContent = requests.length;
+            list.innerHTML = requests.map(req => `
+                <div class="request-item ${req.id === selectedId ? 'selected' : ''}" onclick="selectRequest('${req.id}')">
+                    <div class="method-path">
+                        <span class="method method-${req.method}">${req.method}</span>
+                        <span class="path">${req.path}</span>
+                    </div>
+                    <div class="time">${new Date(req.timestamp).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectRequest(id) {
+            selectedId = id;
+            const req = requests.find(r => r.id === id);
+            if (!req) return;
+            renderList();
+            renderDetail(req);
+        }
+
+        function renderDetail(req) {
+            const panel = document.getElementById('detail-panel');
+            panel.className = 'detail-panel';
+
+            const headersHtml = req.headers.map(([name, value]) => `
+                <tr>
+                    <td class="header-name">${escapeHtml(name)}</td>
+                    <td class="header-value">${escapeHtml(value)}</td>
+                </tr>
+            `).join('');
+
+            let bodyHtml = '';
+            if (req.body) {
+                const contentType = req.headers.find(([name]) => name.toLowerCase() === 'content-type');
+                const isJson = contentType && contentType[1].includes('json');
+                if (isJson) {
+                    try {
+                        const formatted = JSON.stringify(JSON.parse(req.body), null, 2);
+                        bodyHtml = `<pre><code class="language-json">${escapeHtml(formatted)}</code></pre>`;
+                    } catch {
+                        bodyHtml = `<div class="body-raw">${escapeHtml(req.body)}</div>`;
+                    }
+                } else {
+                    bodyHtml = `<div class="body-raw">${escapeHtml(req.body)}</div>`;
+                }
+            } else {
+                bodyHtml = '<p style="color: #666;">No body</p>';
+            }
+
+            panel.innerHTML = `
+                <div class="detail-header">
+                    <div class="title">${req.method} ${req.path}</div>
+                    <div class="meta">${new Date(req.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="detail-content">
+                    <div class="section">
+                        <h3>Headers</h3>
+                        <table class="headers-table">${headersHtml}</table>
+                    </div>
+                    <div class="section">
+                        <h3>Body</h3>
+                        ${bodyHtml}
+                    </div>
+                </div>
+            `;
+            Prism.highlightAll();
+        }
+
+        function clearRequests() {
+            requests = [];
+            selectedId = null;
+            renderList();
+            document.getElementById('detail-panel').innerHTML = '<p>Select a request to view details</p>';
+            document.getElementById('detail-panel').className = 'detail-panel empty';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
