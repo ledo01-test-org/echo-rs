@@ -7,6 +7,18 @@ pub struct HealthResponse {
     pub version: &'static str,
 }
 
+#[derive(Serialize)]
+pub struct ReadinessResponse {
+    pub ready: bool,
+    pub checks: ReadinessChecks,
+}
+
+#[derive(Serialize)]
+pub struct ReadinessChecks {
+    pub server: bool,
+    pub broadcast_channel: bool,
+}
+
 pub async fn health_check() -> impl IntoResponse {
     (
         StatusCode::OK,
@@ -15,4 +27,16 @@ pub async fn health_check() -> impl IntoResponse {
             version: env!("CARGO_PKG_VERSION"),
         }),
     )
+}
+
+pub async fn readiness_check() -> impl IntoResponse {
+    let response = ReadinessResponse {
+        ready: true,
+        checks: ReadinessChecks {
+            server: true,
+            broadcast_channel: true,
+        },
+    };
+
+    (StatusCode::OK, Json(response))
 }
