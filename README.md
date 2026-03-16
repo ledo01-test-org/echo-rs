@@ -16,6 +16,7 @@ docker run -p 8080:8080 ghcr.io/ledo01-test-org/echo-rs
 
 - **Server**: http://127.0.0.1:8080
 - **Dashboard**: http://127.0.0.1:8080/_dashboard
+- **Health check**: http://127.0.0.1:8080/_health
 
 All requests (except `/_*` paths) are captured and displayed in the web dashboard with full headers and body.
 

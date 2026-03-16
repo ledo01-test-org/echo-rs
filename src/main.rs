@@ -20,6 +20,8 @@ use tokio::{net::TcpListener, sync::broadcast};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 use tracing::info;
 
+mod health;
+
 const DASHBOARD_HTML: &str = include_str!("dashboard.html");
 
 #[derive(Clone, Serialize)]
@@ -146,6 +148,7 @@ async fn main() {
         .route("/_history", get(history_handler))
         .route("/_sse", get(sse_handler))
         .route("/favicon.ico", get(favicon))
+        .route("/_health", get(health::health_check))
         .fallback(capture)
         .layer(axum::middleware::from_fn(access_log))
         .with_state(state);
