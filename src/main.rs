@@ -149,6 +149,7 @@ async fn main() {
         .route("/_sse", get(sse_handler))
         .route("/favicon.ico", get(favicon))
         .route("/_health", get(health::health_check))
+        .route("/_ready", get(health::readiness_check))
         .fallback(capture)
         .layer(axum::middleware::from_fn(access_log))
         .with_state(state);
