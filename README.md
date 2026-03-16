@@ -25,3 +25,5 @@ All requests (except `/_*` paths) are captured and displayed in the web dashboar
 - JSON body pretty-printing
 - Request history (persists while server is running)
 - Simple terminal access log
+- Lightweight (~5MB Docker image)
+- Zero configuration required
